@@ -53,7 +53,7 @@ func (self *BaseCrudHandler) UpdateOne(c *gin.Context) {
 
 	validationErrors := self.PersistenceManager.Validate(obj)
 	if validationErrors != nil {
-		c.JSON(http.StatusBadRequest, "...")
+		c.JSON(http.StatusUnprocessableEntity, "...")
 		return
 	}
 
