@@ -11,18 +11,6 @@ type PersistenceManagerMySql struct {
 	entityType reflect.Type
 }
 
-func NewPersistenceManagerMySql(session interface{}, entityType reflect.Type) PersistenceManagerMySql {
-	return PersistenceManagerMySql{session: session, entityType: entityType}
-}
-
-func (self PersistenceManagerMySql) CreateOne(obj interface{}) {
-	panic("implement me")
-}
-
-func (self PersistenceManagerMySql) GetEntityType() reflect.Type {
-	panic("implement me")
-}
-
 func (self PersistenceManagerMySql) FindOne(id string) (interface{}, error) {
 	panic("implement me")
 }
@@ -31,18 +19,26 @@ func (self PersistenceManagerMySql) FindMany(params QueryParams) (interface{}, e
 	panic("implement me")
 }
 
+func (self PersistenceManagerMySql) CreateOne(obj interface{}) {
+	panic("implement me")
+}
+
 func (self PersistenceManagerMySql) DeleteOne(id string) (int, error) {
 	panic("implement me")
 }
 
-func (self PersistenceManagerMySql) DeleteMany(params QueryParams) (int, error) {
+func (self PersistenceManagerMySql) UpdateOne(obj interface{}) (int, error) {
 	panic("implement me")
 }
 
-func (self PersistenceManagerMySql) UpdateOne(id string) (int, error) {
+func (self PersistenceManagerMySql) Validate(obj interface{}) (ValidationErrors, error) {
 	panic("implement me")
 }
 
-func (self PersistenceManagerMySql) UpdateMany(params QueryParams) (int, error) {
+func (self PersistenceManagerMySql) GetEntityType() reflect.Type {
 	panic("implement me")
+}
+
+func (self PersistenceManagerMySql) getSession() {
+
 }

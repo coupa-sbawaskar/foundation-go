@@ -1,6 +1,9 @@
 package rest
 
-import "net/http"
+import (
+	"github.com/gin-gonic/gin"
+	"net/http"
+)
 import "github.com/coupa/foundation-go/persistence"
 
 type BaseCrudHandler struct {
@@ -51,13 +54,13 @@ func (self *BaseCrudHandler) UpdateOne(c *gin.Context) {
 		return
 	}
 
-	validationErrors := self.PersistenceManager.Validate(obj)
-	if validationErrors != nil {
+	validationErrors, _ := self.PersistenceManager.Validate(obj)
+	if validationErrors.HasErrors() {
 		c.JSON(http.StatusUnprocessableEntity, "...")
 		return
 	}
 
-	err = self.PersistenceManager.UpdateOne(obj)
+	_, err = self.PersistenceManager.UpdateOne(obj)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, "...")
 		return

@@ -1,5 +1,10 @@
 package rest
 
+import (
+	"github.com/coupa/foundation-go/persistence"
+	"github.com/gin-gonic/gin"
+)
+
 func ConvertHttpQueryParamsToPersistenceParams(c *gin.Context) persistence.QueryParams {
 	//converts http query params into persistence.QueryParams
 	//the http query params can be quite complex depending on if nested logical expressions are used. e.g,
@@ -10,5 +15,5 @@ func ConvertHttpQueryParamsToPersistenceParams(c *gin.Context) persistence.Query
 	//path?:OR(name=foo & bar) => "where (first_name='first1' and last_name='last1') or  (first_name='first2' and last_name='last2')"
 	//whatever format/syntax used should be documented in https://coupadev.atlassian.net/wiki/spaces/CPL/pages/543949398/Microservice+Standards+Document
 
-	return persistence.QueryParams{...}
+	return persistence.QueryParams{}
 }
