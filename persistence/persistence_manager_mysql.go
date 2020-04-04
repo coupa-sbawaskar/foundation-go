@@ -41,7 +41,6 @@ type PersistenceManagerMySql struct {
 
 func (self *PersistenceManagerMySql) FindOne(id string, value interface{}) error {
 	session := self.pool.NewSession(nil)
-	defer session.Close()
 	query := session.Select("*").From(self.tableName)
 	self.queryId(query, id)
 	_, err := query.Load(value)
@@ -50,7 +49,6 @@ func (self *PersistenceManagerMySql) FindOne(id string, value interface{}) error
 
 func (self *PersistenceManagerMySql) FindMany(params QueryParams, values interface{}) error {
 	session := self.pool.NewSession(nil)
-	defer session.Close()
 	query := session.Select("*").From(self.tableName)
 	if params.Limit > 0 {
 		query.Limit(params.Limit)
@@ -103,7 +101,6 @@ func (self *PersistenceManagerMySql) CreateOne(obj interface{}) error {
 	}
 
 	session := self.pool.NewSession(nil)
-	defer session.Close()
 	query := session.InsertInto(self.tableName)
 	columns := []string{}
 	for columnName, _ := range self.metaData.columnNameToNum {
@@ -115,20 +112,50 @@ func (self *PersistenceManagerMySql) CreateOne(obj interface{}) error {
 	return err
 }
 
-func (self *PersistenceManagerMySql) DeleteOne(id string) (int, error) {
-	panic("implement me")
+func (self *PersistenceManagerMySql) DeleteOne(id string) (bool, error) {
+	session := self.pool.NewSession(nil)
+	res, err := session.DeleteFrom(self.tableName).Where(fmt.Sprintf("%s=?", self.metaData.idColumnName), id).Exec()
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected == 1, nil
 }
 
-func (self *PersistenceManagerMySql) UpdateOne(obj interface{}) (int, error) {
-	panic("implement me")
+func (self *PersistenceManagerMySql) UpdateOne(id string, obj interface{}) (bool, error) {
+	objType := reflect.TypeOf(obj)
+	if objType.Kind() != reflect.Ptr {
+		return false, fmt.Errorf("obj must be a pointer")
+	}
+
+	session := self.pool.NewSession(nil)
+	query := session.Update(self.tableName)
+	objValue := reflect.ValueOf(obj)
+	for columnName, columnNum := range self.metaData.columnNameToNum {
+		if columnName != self.metaData.idColumnName {
+			query.Set(columnName, objValue.Elem().Field(columnNum).Interface())
+		}
+	}
+	res, err := query.Where(fmt.Sprintf("%s=?", self.metaData.idColumnName), id).Exec()
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected == 1, nil
 }
 
 func (self *PersistenceManagerMySql) Validate(obj interface{}) (ValidationErrors, error) {
 	panic("implement me")
 }
 
-func (self *PersistenceManagerMySql) GetEntityType() reflect.Type {
-	panic("implement me")
+func (self *PersistenceManagerMySql) GetModelType() reflect.Type {
+	return self.modelType
 }
 
 func (self *PersistenceManagerMySql) queryId(query *dbr.SelectStmt, id string) {
