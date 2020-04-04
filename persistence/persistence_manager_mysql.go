@@ -81,6 +81,13 @@ func (self *PersistenceManagerMySql) FindMany(params QueryParams, values interfa
 			operator = "in"
 			operand = strings.Split(op.Value, ",")
 		}
+		for _, order := range params.Order {
+			if strings.EqualFold("desc", order[1]) {
+				query.OrderDesc(order[0])
+			} else if strings.EqualFold("asc", order[1]) {
+				query.OrderAsc(order[0])
+			}
+		}
 		query.Where(fmt.Sprintf("%s %s ?", op.ColumnName, operator), operand)
 		fmt.Print(operator)
 		fmt.Print(operand)
