@@ -21,7 +21,7 @@ func (self ValidationErrors) HasErrors() bool {
 type PersistenceManager interface {
 	FindOne(id string) (interface{}, error)
 	FindMany(params QueryParams) (interface{}, error)
-	CreateOne(obj interface{})
+	CreateOne(obj interface{}) error
 	//CreateMany(objs interface{})
 	DeleteOne(id string) (int, error)
 	//DeleteMany(params QueryParams) (int, error)
