@@ -25,11 +25,11 @@ func NewPersistenceManagerMySql(dsn string, tableName string, modelType reflect.
 }
 
 type mySqlMetaData struct {
-	fieldNameToType       map[string]reflect.Type
-	fieldNameToNum        map[string]int
-	fieldNameToColumnName map[string]string
-	idFieldName           string
-	idFieldNum            int
+	columnNameToType map[string]reflect.Type
+	columnNameToNum  map[string]int
+	//columnNameToFieldName map[string]string
+	idColumnName string
+	idFieldNum   int
 }
 
 type PersistenceManagerMySql struct {
@@ -39,12 +39,54 @@ type PersistenceManagerMySql struct {
 	metaData  *mySqlMetaData
 }
 
-func (self *PersistenceManagerMySql) FindOne(id string) (interface{}, error) {
-	panic("implement me")
+func (self *PersistenceManagerMySql) FindOne(id string, value interface{}) error {
+	session := self.pool.NewSession(nil)
+	defer session.Close()
+	query := session.Select("*").From(self.tableName)
+	self.queryId(query, id)
+	_, err := query.Load(value)
+	return err
 }
 
-func (self *PersistenceManagerMySql) FindMany(params QueryParams) (interface{}, error) {
-	panic("implement me")
+func (self *PersistenceManagerMySql) FindMany(params QueryParams, values interface{}) error {
+	session := self.pool.NewSession(nil)
+	defer session.Close()
+	query := session.Select("*").From(self.tableName)
+	if params.Limit > 0 {
+		query.Limit(params.Limit)
+	}
+	if params.Offset > 0 {
+		query.Offset(params.Offset)
+	}
+	for _, op := range params.Operands {
+		var operator string
+		var operand interface{} = op.Value
+		switch op.Operator {
+		case QUERY_OPERATOR_EQ:
+			operator = "="
+		case QUERY_OPERATOR_NEQ:
+			operator = "!="
+		case QUERY_OPERATOR_GT:
+			operator = ">"
+		case QUERY_OPERATOR_GTE:
+			operator = ">="
+		case QUERY_OPERATOR_LT:
+			operator = "<"
+		case QUERY_OPERATOR_LTE:
+			operator = "<="
+		case QUERY_OPERATOR_CONTAINS:
+			operator = "like"
+			operand = "%" + op.Value + "%"
+		case QUERY_OPERATOR_IN:
+			operator = "in"
+			operand = strings.Split(op.Value, ",")
+		}
+		query.Where(fmt.Sprintf("%s %s ?", op.ColumnName, operator), operand)
+		fmt.Print(operator)
+		fmt.Print(operand)
+	}
+	_, err := query.Load(values)
+	return err
 }
 
 func (self *PersistenceManagerMySql) CreateOne(obj interface{}) error {
@@ -57,8 +99,8 @@ func (self *PersistenceManagerMySql) CreateOne(obj interface{}) error {
 	defer session.Close()
 	query := session.InsertInto(self.tableName)
 	columns := []string{}
-	for _, columnName := range self.metaData.fieldNameToColumnName {
-		if columnName != self.metaData.idFieldName {
+	for columnName, _ := range self.metaData.columnNameToNum {
+		if columnName != self.metaData.idColumnName {
 			columns = append(columns, columnName)
 		}
 	}
@@ -82,11 +124,15 @@ func (self *PersistenceManagerMySql) GetEntityType() reflect.Type {
 	panic("implement me")
 }
 
+func (self *PersistenceManagerMySql) queryId(query *dbr.SelectStmt, id string) {
+	query.Where(fmt.Sprintf("%s=?", self.metaData.idColumnName), id)
+}
+
 func (self *PersistenceManagerMySql) buildMetaData() {
 	self.metaData = &mySqlMetaData{
-		fieldNameToType:       map[string]reflect.Type{},
-		fieldNameToNum:        map[string]int{},
-		fieldNameToColumnName: map[string]string{},
+		columnNameToType: map[string]reflect.Type{},
+		columnNameToNum:  map[string]int{},
+		//fieldNameToColumnName: map[string]string{},
 	}
 	for i := 0; i < self.modelType.NumField(); i++ {
 		field := self.modelType.Field(i)
@@ -94,11 +140,11 @@ func (self *PersistenceManagerMySql) buildMetaData() {
 		if dbTag == "" || dbTag == "-" {
 			continue
 		}
-		self.metaData.fieldNameToColumnName[field.Name] = dbTag
-		self.metaData.fieldNameToType[field.Name] = field.Type
-		self.metaData.fieldNameToNum[field.Name] = i
-		if self.metaData.idFieldName == "" && strings.EqualFold(field.Name, "id") || strings.EqualFold(field.Name, "_id") {
-			self.metaData.idFieldName = field.Name
+		//self.metaData.fieldNameToColumnName[field.Name] = dbTag
+		self.metaData.columnNameToType[dbTag] = field.Type
+		self.metaData.columnNameToNum[dbTag] = i
+		if self.metaData.idColumnName == "" && (strings.EqualFold(field.Name, "id") || strings.EqualFold(field.Name, "_id")) {
+			self.metaData.idColumnName = dbTag
 			self.metaData.idFieldNum = i
 		}
 	}
