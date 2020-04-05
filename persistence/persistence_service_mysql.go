@@ -8,17 +8,18 @@ import (
 	"strings"
 )
 
-var _ PersistenceManager = (*PersistenceManagerMySql)(nil)
+var _ PersistenceService = (*PersistenceServiceMySql)(nil)
 
-func NewPersistenceManagerMySql(dsn string, tableName string, modelType reflect.Type) (*PersistenceManagerMySql, error) {
+func NewPersistenceManagerMySql(dsn string, tableName string, modelType reflect.Type) (*PersistenceServiceMySql, error) {
 	pool, err := dbr.Open("mysql", dsn, nil)
 	if err != nil {
 		return nil, err
 	}
-	ret := &PersistenceManagerMySql{
+	ret := &PersistenceServiceMySql{
 		pool:      pool,
 		tableName: tableName,
-		modelType: modelType,
+
+		PersistenceManagerCommon: PersistenceManagerCommon{modelType: modelType},
 	}
 	ret.buildMetaData()
 	return ret, nil
@@ -32,14 +33,15 @@ type mySqlMetaData struct {
 	idFieldNum   int
 }
 
-type PersistenceManagerMySql struct {
+type PersistenceServiceMySql struct {
+	PersistenceManagerCommon
+
 	pool      *dbr.Connection
-	modelType reflect.Type
 	tableName string
 	metaData  *mySqlMetaData
 }
 
-func (self *PersistenceManagerMySql) FindOne(id string, value interface{}) error {
+func (self *PersistenceServiceMySql) FindOneLoad(id string, value interface{}) error {
 	session := self.pool.NewSession(nil)
 	query := session.Select("*").From(self.tableName)
 	self.queryId(query, id)
@@ -47,7 +49,7 @@ func (self *PersistenceManagerMySql) FindOne(id string, value interface{}) error
 	return err
 }
 
-func (self *PersistenceManagerMySql) FindMany(params QueryParams, values interface{}) error {
+func (self *PersistenceServiceMySql) FindManyLoad(params QueryParams, values interface{}) error {
 	session := self.pool.NewSession(nil)
 	query := session.Select("*").From(self.tableName)
 	if params.Limit > 0 {
@@ -78,12 +80,20 @@ func (self *PersistenceManagerMySql) FindMany(params QueryParams, values interfa
 		case QUERY_OPERATOR_IN:
 			operator = "in"
 			operand = strings.Split(op.Value, ",")
+		case QUERY_OPERATOR_STARTS_WITH:
+			operator = "like"
+			operand = op.Value + "%"
+		case QUERY_OPERATOR_ENDS_WITH:
+			operator = "like"
+			operand = "%" + op.Value
+		default:
+			return fmt.Errorf("unknown operator '%v'", op.Operator)
 		}
 		for _, order := range params.Order {
-			if strings.EqualFold("desc", order[1]) {
-				query.OrderDesc(order[0])
-			} else if strings.EqualFold("asc", order[1]) {
-				query.OrderAsc(order[0])
+			if order.Direction == ORDER_DIRECTION_ASC {
+				query.OrderAsc(order.ColumnName)
+			} else {
+				query.OrderDesc(order.ColumnName)
 			}
 		}
 		query.Where(fmt.Sprintf("%s %s ?", op.ColumnName, operator), operand)
@@ -94,7 +104,7 @@ func (self *PersistenceManagerMySql) FindMany(params QueryParams, values interfa
 	return err
 }
 
-func (self *PersistenceManagerMySql) CreateOne(obj interface{}) error {
+func (self *PersistenceServiceMySql) CreateOne(obj interface{}) error {
 	objType := reflect.TypeOf(obj)
 	if objType.Kind() != reflect.Ptr {
 		return fmt.Errorf("obj must be a pointer")
@@ -112,7 +122,7 @@ func (self *PersistenceManagerMySql) CreateOne(obj interface{}) error {
 	return err
 }
 
-func (self *PersistenceManagerMySql) DeleteOne(id string) (bool, error) {
+func (self *PersistenceServiceMySql) DeleteOne(id string) (bool, error) {
 	session := self.pool.NewSession(nil)
 	res, err := session.DeleteFrom(self.tableName).Where(fmt.Sprintf("%s=?", self.metaData.idColumnName), id).Exec()
 	if err != nil {
@@ -125,7 +135,7 @@ func (self *PersistenceManagerMySql) DeleteOne(id string) (bool, error) {
 	return rowsAffected == 1, nil
 }
 
-func (self *PersistenceManagerMySql) UpdateOne(id string, obj interface{}) (bool, error) {
+func (self *PersistenceServiceMySql) UpdateOne(id string, obj interface{}) (bool, error) {
 	objType := reflect.TypeOf(obj)
 	if objType.Kind() != reflect.Ptr {
 		return false, fmt.Errorf("obj must be a pointer")
@@ -150,19 +160,15 @@ func (self *PersistenceManagerMySql) UpdateOne(id string, obj interface{}) (bool
 	return rowsAffected == 1, nil
 }
 
-func (self *PersistenceManagerMySql) Validate(obj interface{}) (ValidationErrors, error) {
-	panic("implement me")
+func (self *PersistenceServiceMySql) Validate(obj interface{}) (ValidationErrors, error) {
+	return Validate(obj)
 }
 
-func (self *PersistenceManagerMySql) GetModelType() reflect.Type {
-	return self.modelType
-}
-
-func (self *PersistenceManagerMySql) queryId(query *dbr.SelectStmt, id string) {
+func (self *PersistenceServiceMySql) queryId(query *dbr.SelectStmt, id string) {
 	query.Where(fmt.Sprintf("%s=?", self.metaData.idColumnName), id)
 }
 
-func (self *PersistenceManagerMySql) buildMetaData() {
+func (self *PersistenceServiceMySql) buildMetaData() {
 	self.metaData = &mySqlMetaData{
 		columnNameToType: map[string]reflect.Type{},
 		columnNameToNum:  map[string]int{},
