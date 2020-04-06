@@ -5,21 +5,22 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gocraft/dbr/v2"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
 var _ PersistenceService = (*PersistenceServiceMySql)(nil)
 
 func NewPersistenceManagerMySql(dsn string, tableName string, modelType reflect.Type) (*PersistenceServiceMySql, error) {
-	pool, err := dbr.Open("mysql", dsn, nil)
+	connection, err := dbr.Open("mysql", dsn, nil)
 	if err != nil {
 		return nil, err
 	}
 	ret := &PersistenceServiceMySql{
-		pool:      pool,
-		tableName: tableName,
+		connection: connection,
+		tableName:  tableName,
 
-		PersistenceManagerCommon: PersistenceManagerCommon{modelType: modelType},
+		PersistenceServiceCommon: PersistenceServiceCommon{modelType: modelType},
 	}
 	ret.buildMetaData()
 	return ret, nil
@@ -34,15 +35,15 @@ type mySqlMetaData struct {
 }
 
 type PersistenceServiceMySql struct {
-	PersistenceManagerCommon
+	PersistenceServiceCommon
 
-	pool      *dbr.Connection
-	tableName string
-	metaData  *mySqlMetaData
+	connection *dbr.Connection
+	tableName  string
+	metaData   *mySqlMetaData
 }
 
 func (self *PersistenceServiceMySql) FindOneLoad(id string, value interface{}) error {
-	session := self.pool.NewSession(nil)
+	session := self.connection.NewSession(nil)
 	query := session.Select("*").From(self.tableName)
 	self.queryId(query, id)
 	_, err := query.Load(value)
@@ -50,7 +51,7 @@ func (self *PersistenceServiceMySql) FindOneLoad(id string, value interface{}) e
 }
 
 func (self *PersistenceServiceMySql) FindManyLoad(params QueryParams, values interface{}) error {
-	session := self.pool.NewSession(nil)
+	session := self.connection.NewSession(nil)
 	query := session.Select("*").From(self.tableName)
 	if params.Limit > 0 {
 		query.Limit(params.Limit)
@@ -60,12 +61,14 @@ func (self *PersistenceServiceMySql) FindManyLoad(params QueryParams, values int
 	}
 	for _, op := range params.Operands {
 		var operator string
-		var operand interface{} = op.Value
+		var value interface{} = op.Value
 		switch op.Operator {
 		case QUERY_OPERATOR_EQ:
 			operator = "="
+			value, _ = strconv.ParseBool(op.Value)
 		case QUERY_OPERATOR_NEQ:
 			operator = "!="
+			value, _ = strconv.ParseBool(op.Value)
 		case QUERY_OPERATOR_GT:
 			operator = ">"
 		case QUERY_OPERATOR_GTE:
@@ -76,16 +79,16 @@ func (self *PersistenceServiceMySql) FindManyLoad(params QueryParams, values int
 			operator = "<="
 		case QUERY_OPERATOR_CONTAINS:
 			operator = "like"
-			operand = "%" + op.Value + "%"
+			value = "%" + op.Value + "%"
 		case QUERY_OPERATOR_IN:
 			operator = "in"
-			operand = strings.Split(op.Value, ",")
+			value = strings.Split(op.Value, ",")
 		case QUERY_OPERATOR_STARTS_WITH:
 			operator = "like"
-			operand = op.Value + "%"
+			value = op.Value + "%"
 		case QUERY_OPERATOR_ENDS_WITH:
 			operator = "like"
-			operand = "%" + op.Value
+			value = "%" + op.Value
 		default:
 			return fmt.Errorf("unknown operator '%v'", op.Operator)
 		}
@@ -96,9 +99,7 @@ func (self *PersistenceServiceMySql) FindManyLoad(params QueryParams, values int
 				query.OrderDesc(order.ColumnName)
 			}
 		}
-		query.Where(fmt.Sprintf("%s %s ?", op.ColumnName, operator), operand)
-		fmt.Print(operator)
-		fmt.Print(operand)
+		query.Where(fmt.Sprintf("%s %s ?", op.Key, operator), value)
 	}
 	_, err := query.Load(values)
 	return err
@@ -110,7 +111,7 @@ func (self *PersistenceServiceMySql) CreateOne(obj interface{}) error {
 		return fmt.Errorf("obj must be a pointer")
 	}
 
-	session := self.pool.NewSession(nil)
+	session := self.connection.NewSession(nil)
 	query := session.InsertInto(self.tableName)
 	columns := []string{}
 	for columnName, _ := range self.metaData.columnNameToNum {
@@ -123,7 +124,7 @@ func (self *PersistenceServiceMySql) CreateOne(obj interface{}) error {
 }
 
 func (self *PersistenceServiceMySql) DeleteOne(id string) (bool, error) {
-	session := self.pool.NewSession(nil)
+	session := self.connection.NewSession(nil)
 	res, err := session.DeleteFrom(self.tableName).Where(fmt.Sprintf("%s=?", self.metaData.idColumnName), id).Exec()
 	if err != nil {
 		return false, err
@@ -141,7 +142,7 @@ func (self *PersistenceServiceMySql) UpdateOne(id string, obj interface{}) (bool
 		return false, fmt.Errorf("obj must be a pointer")
 	}
 
-	session := self.pool.NewSession(nil)
+	session := self.connection.NewSession(nil)
 	query := session.Update(self.tableName)
 	objValue := reflect.ValueOf(obj)
 	for columnName, columnNum := range self.metaData.columnNameToNum {
@@ -188,4 +189,8 @@ func (self *PersistenceServiceMySql) buildMetaData() {
 			self.metaData.idFieldNum = i
 		}
 	}
+}
+
+func (self *PersistenceServiceMySql) GetConnection() *dbr.Connection {
+	return self.connection
 }

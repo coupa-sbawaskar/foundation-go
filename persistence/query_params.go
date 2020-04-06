@@ -23,9 +23,9 @@ const (
 )
 
 type QueryExpression struct {
-	ColumnName string
-	Operator   QueryOperatorType
-	Value      string
+	Key      string
+	Operator QueryOperatorType
+	Value    string
 }
 
 type OrderStatement struct {

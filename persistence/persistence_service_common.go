@@ -2,19 +2,19 @@ package persistence
 
 import "reflect"
 
-type PersistenceManagerCommon struct {
+type PersistenceServiceCommon struct {
 	modelType reflect.Type
 }
 
-func (self *PersistenceManagerCommon) GetModelType() reflect.Type {
+func (self *PersistenceServiceCommon) GetModelType() reflect.Type {
 	return self.modelType
 }
 
-func (self *PersistenceManagerCommon) NewModelObj() interface{} {
+func (self *PersistenceServiceCommon) NewModelObj() interface{} {
 	return reflect.Zero(self.modelType).Interface()
 }
 
-func (self *PersistenceManagerCommon) NewModelObjPtr() interface{} {
+func (self *PersistenceServiceCommon) NewModelObjPtr() interface{} {
 	return reflect.New(self.modelType).Interface()
 }
 

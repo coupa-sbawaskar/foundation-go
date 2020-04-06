@@ -40,9 +40,9 @@ func (self *HttpQueryParserRailsActiveAdmin) Parse(c *gin.Context) (persistence.
 			}
 			if len(matched[0]) == 1 {
 				queryExpression := persistence.QueryExpression{
-					ColumnName: matched[0][1],
-					Operator:   persistence.QUERY_OPERATOR_EQ,
-					Value:      values[0],
+					Key:      matched[0][1],
+					Operator: persistence.QUERY_OPERATOR_EQ,
+					Value:    values[0],
 				}
 				ret.Operands = append(ret.Operands, queryExpression)
 			} else if len(matched[0]) == 3 {
@@ -72,9 +72,9 @@ func (self *HttpQueryParserRailsActiveAdmin) Parse(c *gin.Context) (persistence.
 					return ret, fmt.Errorf("unknown operator '%v'", matched[2])
 				}
 				queryExpression := persistence.QueryExpression{
-					ColumnName: matched[0][1],
-					Operator:   operator,
-					Value:      values[0],
+					Key:      matched[0][1],
+					Operator: operator,
+					Value:    values[0],
 				}
 				ret.Operands = append(ret.Operands, queryExpression)
 			}
