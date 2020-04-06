@@ -9,9 +9,17 @@ import (
 	"strings"
 )
 
+type PersistenceServiceMySql struct {
+	PersistenceServiceCommon
+
+	connection *dbr.Connection
+	tableName  string
+	metaData   *mySqlMetaData
+}
+
 var _ PersistenceService = (*PersistenceServiceMySql)(nil)
 
-func NewPersistenceManagerMySql(dsn string, tableName string, modelType reflect.Type) (*PersistenceServiceMySql, error) {
+func NewPersistenceServiceMySql(dsn string, tableName string, modelType reflect.Type) (*PersistenceServiceMySql, error) {
 	connection, err := dbr.Open("mysql", dsn, nil)
 	if err != nil {
 		return nil, err
@@ -19,9 +27,8 @@ func NewPersistenceManagerMySql(dsn string, tableName string, modelType reflect.
 	ret := &PersistenceServiceMySql{
 		connection: connection,
 		tableName:  tableName,
-
-		PersistenceServiceCommon: PersistenceServiceCommon{modelType: modelType},
 	}
+	ret.PersistenceServiceCommon = NewPersistenceServiceCommon(modelType, ret.FindOneLoad, ret.FindManyLoad)
 	ret.buildMetaData()
 	return ret, nil
 }
@@ -32,14 +39,6 @@ type mySqlMetaData struct {
 	//columnNameToFieldName map[string]string
 	idColumnName string
 	idFieldNum   int
-}
-
-type PersistenceServiceMySql struct {
-	PersistenceServiceCommon
-
-	connection *dbr.Connection
-	tableName  string
-	metaData   *mySqlMetaData
 }
 
 func (self *PersistenceServiceMySql) FindOneLoad(id string, value interface{}) error {
@@ -92,14 +91,15 @@ func (self *PersistenceServiceMySql) FindManyLoad(params QueryParams, values int
 		default:
 			return fmt.Errorf("unknown operator '%v'", op.Operator)
 		}
-		for _, order := range params.Order {
-			if order.Direction == ORDER_DIRECTION_ASC {
-				query.OrderAsc(order.ColumnName)
-			} else {
-				query.OrderDesc(order.ColumnName)
-			}
-		}
+
 		query.Where(fmt.Sprintf("%s %s ?", op.Key, operator), value)
+	}
+	for _, order := range params.Order {
+		if order.Direction == ORDER_DIRECTION_ASC {
+			query.OrderAsc(order.Key)
+		} else {
+			query.OrderDesc(order.Key)
+		}
 	}
 	_, err := query.Load(values)
 	return err

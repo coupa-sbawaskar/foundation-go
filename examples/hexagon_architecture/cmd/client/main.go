@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/coupa/foundation-go/examples/hexagon_architecture/models"
 	"github.com/coupa/foundation-go/examples/hexagon_architecture/pkg/services"
-	"github.com/coupa/foundation-go/persistence"
+	"github.com/coupa/foundation-go/rest"
 	"log"
 	"os"
 	"os/signal"
@@ -13,12 +13,12 @@ import (
 )
 
 func main() {
-	persistenceServiceMySql, err := persistence.NewPersistenceManagerMySql("root:@/hex_demo", "cars", reflect.TypeOf(models.Car{}))
+	//persistenceService, err := persistence.NewPersistenceServiceMySql("root:@/hex_demo", "cars", reflect.TypeOf(models.Car{}))
+	persistenceService, err := rest.NewPersistenceServiceRest("http://localhost:8080/cars", reflect.TypeOf(models.Car{}))
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	dmvService := services.DmvService{PersistenceService: persistenceServiceMySql}
+	dmvService := services.DmvService{PersistenceService: persistenceService}
 
 	ticker3s := time.NewTicker(3 * time.Second)
 	ticker5s := time.NewTicker(5 * time.Second)
@@ -50,7 +50,7 @@ func main() {
 }
 
 //func deleteone(pm persistence.PersistenceService) {
-//	_, err := pm.DeleteOne("13")
+//	_, err := pm.Destroy("13")
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -62,7 +62,7 @@ func main() {
 //	car.LicensePlate = "123"
 //	car.Model = "x"
 //	car.Year = 22
-//	_, err := pm.UpdateOne("12", &car)
+//	_, err := pm.Update("12", &car)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -77,7 +77,7 @@ func main() {
 //		Year:         1985,
 //	}
 //
-//	err := pm.CreateOne(&car)
+//	err := pm.Create(&car)
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -93,7 +93,7 @@ func main() {
 //		Offset: 0,
 //		Order:  []persistence.OrderStatement{{Key: "id", Direction: persistence.ORDER_DIRECTION_ASC}},
 //	}
-//	cars, err := pm.FindMany(params)
+//	cars, err := pm.Index(params)
 //	if err != nil {
 //		log.Fatal(err)
 //	}

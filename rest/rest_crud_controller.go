@@ -21,7 +21,7 @@ func NewCrudController(persistenceManager persistence.PersistenceService, httpQu
 	}
 }
 
-func (self *CrudController) FindOne(c *gin.Context) {
+func (self *CrudController) Show(c *gin.Context) {
 	id := c.Param("id")
 	obj, err := self.persistenceService.FindOne(id)
 	if err != nil {
@@ -37,8 +37,7 @@ func (self *CrudController) FindOne(c *gin.Context) {
 	c.JSON(http.StatusOK, obj)
 }
 
-//equivalent to a rails "index" controller action
-func (self *CrudController) FindMany(c *gin.Context) {
+func (self *CrudController) Index(c *gin.Context) {
 	persistenceQuery, err := self.httpQueryParser.Parse(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, err.Error())
@@ -53,7 +52,7 @@ func (self *CrudController) FindMany(c *gin.Context) {
 	c.JSON(http.StatusOK, objs)
 }
 
-func (self *CrudController) UpdateOne(c *gin.Context) {
+func (self *CrudController) Update(c *gin.Context) {
 	id := c.Param("id")
 	obj := self.persistenceService.NewModelObjPtr()
 	err := self.persistenceService.FindOneLoad(id, obj)
@@ -82,10 +81,10 @@ func (self *CrudController) UpdateOne(c *gin.Context) {
 	c.JSON(http.StatusOK, obj)
 }
 
-func (self *CrudController) CreateOne(c *gin.Context) {
+func (self *CrudController) Create(c *gin.Context) {
 	obj := self.persistenceService.NewModelObjPtr()
 
-	if err := c.ShouldBindJSON(&obj); err != nil {
+	if err := c.ShouldBindJSON(obj); err != nil {
 		c.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
@@ -105,7 +104,7 @@ func (self *CrudController) CreateOne(c *gin.Context) {
 	c.JSON(http.StatusOK, obj)
 }
 
-func (self *CrudController) DeleteOne(c *gin.Context) {
+func (self *CrudController) Destroy(c *gin.Context) {
 	id := c.Param("id")
 	_, err := self.persistenceService.DeleteOne(id)
 	if err != nil {

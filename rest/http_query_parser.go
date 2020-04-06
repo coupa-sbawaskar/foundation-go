@@ -69,7 +69,7 @@ func (self *HttpQueryParserRailsActiveAdmin) Parse(c *gin.Context) (persistence.
 				case "ends_with":
 					operator = persistence.QUERY_OPERATOR_ENDS_WITH
 				default:
-					return ret, fmt.Errorf("unknown operator '%v'", matched[2])
+					return ret, fmt.Errorf("unknown operator '%v'", matched[0][2])
 				}
 				queryExpression := persistence.QueryExpression{
 					Key:      matched[0][1],
