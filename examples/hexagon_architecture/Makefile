@@ -36,6 +36,8 @@ test:
 fmt:
 	GO111MODULE=on go fmt ../../pkg/...
 
+watch:
+	watch -n 1 -d 'mysql hex_demo -uroot -e "select * from cars"'
 
 clean:
 	-rm -f ${TEST_REPORT}
